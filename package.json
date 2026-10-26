@@ -1,0 +1,10 @@
+{
+  "name": "getting-on-my-nerves",
+  "version": "0.1.0",
+  "description": "Digital version of the action potential game 'You are Getting on my Nerves'",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
