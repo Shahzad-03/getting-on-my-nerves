@@ -17,9 +17,10 @@ test('getCurrentPlayer returns whose turn it is', () => {
   assert.equal(getCurrentPlayer(game).name, 'Ana');
 });
 
-test('for now, the only legal play is ending your turn', () => {
+test('ending your turn is always a legal play', () => {
   const game = newGame();
-  assert.deepEqual(getLegalPlays(game), [{ type: 'END_TURN' }]);
+  const types = getLegalPlays(game).map((play) => play.type);
+  assert.ok(types.includes('END_TURN'));
 });
 
 test('ending your turn passes it to the next player', () => {

@@ -2,7 +2,8 @@
 // Creating a new game: building the decks, shuffling and dealing.
 
 import { CARD_TYPES, POTENTIAL, ACTION, getCardType } from './cards.js';
-import { AXON_HILLOCK } from './board.js';
+import { AXON_HILLOCK, FINISH } from './board.js';
+import { getMoveOptions } from './rules.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
@@ -85,6 +86,7 @@ export function createGame(players) {
     },
     currentPlayer: 0,
     turnNumber: 1,
+    canMove: true, // false after a Weak stimulus, until the next turn
   };
 
   for (const p of players) {
@@ -115,11 +117,31 @@ export function getCurrentPlayer(game) {
 
 // Everything the current player is allowed to do right now.
 // Each play is a small object, e.g. { type: 'END_TURN' }.
-// For now you can only end your turn. Later steps add moving, action cards and discarding.
 export function getLegalPlays(game) {
+  const player = getCurrentPlayer(game);
   const plays = [];
+
+  // Moves: one play for each move option the player has the cards for.
+  if (game.canMove) {
+    for (const option of getMoveOptions(player.position)) {
+      if (hasAllCards(player, option.cards)) {
+        plays.push({ type: 'MOVE', cards: option.cards, steps: option.steps });
+      }
+    }
+  }
+
   plays.push({ type: 'END_TURN' });
   return plays;
+}
+
+// Does the player hold every one of these cards?
+function hasAllCards(player, cards) {
+  for (const card of cards) {
+    if (!player.hand.includes(card)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Is this play in the list of legal plays?
@@ -138,8 +160,31 @@ export function applyPlay(game, play) {
     throw new Error('That play is not allowed: ' + JSON.stringify(play));
   }
 
-  if (play.type === 'END_TURN') {
+  if (play.type === 'MOVE') {
+    movePiece(game, play);
+  } else if (play.type === 'END_TURN') {
     endTurn(game);
+  }
+}
+
+// Move a card from the player's hand onto its discard pile.
+function discardFromHand(game, player, card) {
+  const index = player.hand.indexOf(card);
+  player.hand.splice(index, 1);
+  game.discards[getCardType(card).deck].push(card);
+}
+
+// Play the cards and move the current player's piece forward.
+function movePiece(game, play) {
+  const player = getCurrentPlayer(game);
+  for (const card of play.cards) {
+    discardFromHand(game, player, card);
+  }
+  player.position = Math.min(player.position + play.steps, FINISH);
+
+  // Weak stimulus: onto START, but no more forward moves this turn.
+  if (play.cards.includes('WEAK_STIMULUS')) {
+    game.canMove = false;
   }
 }
 
@@ -148,4 +193,5 @@ function endTurn(game) {
   refillHand(game, getCurrentPlayer(game));
   game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
   game.turnNumber = game.turnNumber + 1;
+  game.canMove = true;
 }
