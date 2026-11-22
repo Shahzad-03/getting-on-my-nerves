@@ -84,6 +84,7 @@ export function createGame(players) {
       action: [],
     },
     currentPlayer: 0,
+    turnNumber: 1,
   };
 
   for (const p of players) {
@@ -103,4 +104,48 @@ export function createGame(players) {
   game.currentPlayer = Math.floor(Math.random() * game.players.length);
 
   return game;
+}
+
+// ---------------- Taking turns ----------------
+
+// The player whose turn it is.
+export function getCurrentPlayer(game) {
+  return game.players[game.currentPlayer];
+}
+
+// Everything the current player is allowed to do right now.
+// Each play is a small object, e.g. { type: 'END_TURN' }.
+// For now you can only end your turn. Later steps add moving, action cards and discarding.
+export function getLegalPlays(game) {
+  const plays = [];
+  plays.push({ type: 'END_TURN' });
+  return plays;
+}
+
+// Is this play in the list of legal plays?
+export function isLegalPlay(game, play) {
+  for (const legal of getLegalPlays(game)) {
+    if (JSON.stringify(legal) === JSON.stringify(play)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Carry out a play. Throws an error if the play isn't allowed.
+export function applyPlay(game, play) {
+  if (!isLegalPlay(game, play)) {
+    throw new Error('That play is not allowed: ' + JSON.stringify(play));
+  }
+
+  if (play.type === 'END_TURN') {
+    endTurn(game);
+  }
+}
+
+// Refill the player's hand, then pass the turn to the next player.
+function endTurn(game) {
+  refillHand(game, getCurrentPlayer(game));
+  game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
+  game.turnNumber = game.turnNumber + 1;
 }
