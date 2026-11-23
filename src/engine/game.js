@@ -3,7 +3,7 @@
 
 import { CARD_TYPES, POTENTIAL, ACTION, getCardType } from './cards.js';
 import { AXON_HILLOCK, START, FINISH } from './board.js';
-import { getMoveOptions, canBeHitByAlcohol } from './rules.js';
+import { getMoveOptions, ATTACK_CARDS, canBeAttacked } from './rules.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
@@ -93,8 +93,9 @@ export function createGame(players) {
     game.players.push({
       name: p.name,
       isComputer: p.isComputer === true,
-      position: AXON_HILLOCK,
+            position: AXON_HILLOCK,
       hand: [],
+      penalty: null, // the card that will make them skip their next turn, if any
     });
   }
 
@@ -121,6 +122,15 @@ export function getLegalPlays(game) {
   const player = getCurrentPlayer(game);
   const plays = [];
 
+  // A player with a penalty must skip this turn, unless they can cancel it.
+  if (player.penalty !== null) {
+    if (player.penalty === 'RELATIVE_REFRACTORY' && player.hand.includes('STRONG_STIMULUS')) {
+      plays.push({ type: 'CANCEL_PENALTY' });
+    }
+    plays.push({ type: 'SKIP_TURN' });
+    return plays;
+  }
+
   // Moves: one play for each move option the player has the cards for.
   if (game.canMove) {
     for (const option of getMoveOptions(player.position)) {
@@ -129,12 +139,24 @@ export function getLegalPlays(game) {
       }
     }
   }
-  // Alcohol: send an opponent back 2 spaces.
-  if (player.hand.includes('ALCOHOL')) {
+
+  // Attacks: one play for each attack card and each opponent it can hit.
+  for (const card of ATTACK_CARDS) {
+    if (!player.hand.includes(card)) {
+      continue;
+    }
     for (let i = 0; i < game.players.length; i++) {
-      if (i !== game.currentPlayer && canBeHitByAlcohol(game.players[i].position)) {
-        plays.push({ type: 'ATTACK', card: 'ALCOHOL', target: i });
+      const target = game.players[i];
+      if (i === game.currentPlayer) {
+        continue; // not yourself
       }
+      if (!canBeAttacked(card, target.position)) {
+        continue; // wrong part of the board
+      }
+      if (card !== 'ALCOHOL' && target.penalty !== null) {
+        continue; // penalties don't stack
+      }
+      plays.push({ type: 'ATTACK', card: card, target: i });
     }
   }
 
@@ -168,10 +190,14 @@ export function applyPlay(game, play) {
     throw new Error('That play is not allowed: ' + JSON.stringify(play));
   }
 
-    if (play.type === 'MOVE') {
+      if (play.type === 'MOVE') {
     movePiece(game, play);
   } else if (play.type === 'ATTACK') {
     attackPlayer(game, play);
+  } else if (play.type === 'SKIP_TURN') {
+    skipTurn(game);
+  } else if (play.type === 'CANCEL_PENALTY') {
+    cancelPenalty(game);
   } else if (play.type === 'END_TURN') {
     endTurn(game);
   }
@@ -199,6 +225,7 @@ function movePiece(game, play) {
 }
 
 // Play an action card against another player.
+// Play an action card against another player.
 function attackPlayer(game, play) {
   const player = getCurrentPlayer(game);
   const target = game.players[play.target];
@@ -206,7 +233,23 @@ function attackPlayer(game, play) {
 
   if (play.card === 'ALCOHOL') {
     target.position = Math.max(START, target.position - 2);
+  } else {
+    // All the other attack cards make the target skip their next turn.
+    target.penalty = play.card;
   }
+}
+
+// Miss this turn because of a penalty.
+function skipTurn(game) {
+  getCurrentPlayer(game).penalty = null;
+  endTurn(game);
+}
+
+// Play a Strong stimulus to cancel a Relative refractory period, then carry on as normal.
+function cancelPenalty(game) {
+  const player = getCurrentPlayer(game);
+  discardFromHand(game, player, 'STRONG_STIMULUS');
+  player.penalty = null;
 }
 
 // Refill the player's hand, then pass the turn to the next player.

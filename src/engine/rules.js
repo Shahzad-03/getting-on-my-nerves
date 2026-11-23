@@ -51,8 +51,31 @@ export function getMoveOptions(position) {
   return [];
 }
 
-// Can a player at this position be hit by Alcohol?
-// Only on the pink spaces after START and before threshold (-68 to -56 mV).
-export function canBeHitByAlcohol(position) {
-  return position > START && position < THRESHOLD;
+// Action cards that are played against another player.
+export const ATTACK_CARDS = [
+  'ALCOHOL',
+  'ABSOLUTE_REFRACTORY',
+  'RELATIVE_REFRACTORY',
+  'NARROW_AXON',
+  'DEMYELINATED_AXON',
+];
+
+// Can this attack card be played on a player standing at this position?
+export function canBeAttacked(card, position) {
+  const colour = getColourAt(position);
+
+  if (card === 'ALCOHOL') {
+    // pink spaces after START and before threshold (-68 to -56 mV)
+    return position > START && position < THRESHOLD;
+  }
+  if (card === 'ABSOLUTE_REFRACTORY') {
+    return colour === PEACH || colour === MAGENTA;
+  }
+  if (card === 'RELATIVE_REFRACTORY') {
+    return colour === BLUE;
+  }
+  if (card === 'NARROW_AXON' || card === 'DEMYELINATED_AXON') {
+    return colour === YELLOW;
+  }
+  return false;
 }
