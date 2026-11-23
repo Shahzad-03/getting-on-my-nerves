@@ -1,16 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AXON_HILLOCK, START, THRESHOLD } from '../src/engine/board.js';
-import { createGame, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { newTestGame } from './helpers.js';
 
 // Ana (player 0) goes first. Set where everyone stands and what Ana holds.
 // positions is a list, one per player, e.g. [3, 5] means Ana on 3, Ben on 5.
 function setUp(positions, anasHand) {
-  const players = [];
-  for (let i = 0; i < positions.length; i++) {
-    players.push({ name: ['Ana', 'Ben', 'Cat'][i] });
-  }
-  const game = createGame(players);
+  const names = ['Ana', 'Ben', 'Cat'].slice(0, positions.length);
+  const game = newTestGame(names);
   game.currentPlayer = 0;
   for (let i = 0; i < positions.length; i++) {
     game.players[i].position = positions[i];

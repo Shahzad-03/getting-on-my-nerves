@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AXON_HILLOCK, START, THRESHOLD, FINISH } from '../src/engine/board.js';
-import { createGame, getCurrentPlayer, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { getCurrentPlayer, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { newTestGame } from './helpers.js';
 
 // A 2-player game where Ana goes first, standing at `position`, holding `hand`.
 function setUp(position, hand) {
-  const game = createGame([{ name: 'Ana' }, { name: 'Ben' }]);
+  const game = newTestGame(['Ana', 'Ben']);
   game.currentPlayer = 0;
   game.forcedDiscards = false; // these tests are only about moving
   const ana = getCurrentPlayer(game);
@@ -99,8 +100,8 @@ test('axon cards do nothing outside the P track', () => {
 
 test('you can never move past FINISH', () => {
   const game = setUp(FINISH - 1, ['PROPAGATION', 'LARGE_AXON']);
-  applyPlay(game, getMoves(game)[1]);
-  assert.equal(getCurrentPlayer(game).position, FINISH);
+    applyPlay(game, getMoves(game)[1]);
+  assert.equal(game.players[0].position, FINISH);
 });
 
 test('two of the same card still only give one move option', () => {

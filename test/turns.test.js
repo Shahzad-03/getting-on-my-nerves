@@ -1,18 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { POTENTIAL, ACTION, getCardType } from '../src/engine/cards.js';
+import { newTestGame } from './helpers.js';
 import {
-  createGame, getCurrentPlayer, getLegalPlays, applyPlay, countInHand,
+  getCurrentPlayer, getLegalPlays, applyPlay, countInHand,
 } from '../src/engine/game.js';
 
 // A 3-player game where player 0 (Ana) goes first.
 function newGame() {
-  let game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
-  // Very rarely someone is dealt three Tetrodotoxin and is out before the game starts.
-  // That would muddle these tests, so deal again.
-  while (game.players.some((player) => player.eliminated)) {
-    game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
-  }
+  const game = newTestGame(['Ana', 'Ben', 'Cat']);
   game.currentPlayer = 0;
   game.forcedDiscards = false; // these tests are only about turns
   return game;
@@ -61,8 +57,6 @@ test('ending your turn refills your hand to 4 + 2', () => {
   assert.equal(ana.hand.length, 4);
 
   applyPlay(game, { type: 'END_TURN' });
-  if (!ana.eliminated) { // (unless she drew her third Tetrodotoxin)
-    assert.equal(countInHand(ana, POTENTIAL), 4);
-    assert.equal(countInHand(ana, ACTION), 2);
-  }
+  assert.equal(countInHand(ana, POTENTIAL), 4);
+  assert.equal(countInHand(ana, ACTION), 2);
 });

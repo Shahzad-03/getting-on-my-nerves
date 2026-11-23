@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, getCurrentPlayer, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { getCurrentPlayer, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { newTestGame } from './helpers.js';
 
 // Some positions on the board, by colour.
 const PINK_SPACE = 4;
@@ -12,7 +13,7 @@ const P_SPACE = 33;
 
 // Ana (player 0) goes first, holding anasHand. Ben stands on bensPosition.
 function setUp(anasHand, bensPosition) {
-  const game = createGame([{ name: 'Ana' }, { name: 'Ben' }]);
+    const game = newTestGame(['Ana', 'Ben']);
   game.currentPlayer = 0;
   game.players[0].position = PINK_SPACE;
   game.players[0].hand = anasHand;

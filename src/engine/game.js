@@ -117,6 +117,9 @@ export function createGame(players) {
     played: { potential: false, action: false }, // played a card from this deck this turn?
     discarded: { potential: 0, action: 0 },      // cards discarded this turn
     forcedDiscards: true, // the "discard if you can't play" rule (tests can switch it off)
+    gameOver: false,
+    winner: null,     // index of the winning player, once there is one
+    finishOrder: [],  // indexes of players, in the order they reached FINISH
   };
 
   for (const p of players) {
@@ -135,8 +138,19 @@ export function createGame(players) {
     refillHand(game, player);
   }
 
-  // Pick a random player to go first.
-  game.currentPlayer = Math.floor(Math.random() * game.players.length);
+  // Very rarely, players are knocked out by Tetrodotoxin while the cards are dealt.
+  checkGameOver(game);
+
+  // Pick a random player to go first, from those still in the game.
+  const stillIn = [];
+  for (let i = 0; i < game.players.length; i++) {
+    if (isStillPlaying(game.players[i])) {
+      stillIn.push(i);
+    }
+  }
+  if (stillIn.length > 0) {
+    game.currentPlayer = stillIn[Math.floor(Math.random() * stillIn.length)];
+  }
 
   return game;
 }
@@ -148,11 +162,21 @@ export function getCurrentPlayer(game) {
   return game.players[game.currentPlayer];
 }
 
+// Is this player still in the race? (Not finished, and not knocked out.)
+export function isStillPlaying(player) {
+  return !player.eliminated && player.position < FINISH;
+}
+
 // Everything the current player is allowed to do right now.
 // Each play is a small object, e.g. { type: 'END_TURN' }.
 export function getLegalPlays(game) {
   const player = getCurrentPlayer(game);
   const plays = [];
+
+  // Nothing can be played once the game is over.
+  if (game.gameOver) {
+    return plays;
+  }
 
   // A player with a penalty must skip this turn, unless they can cancel it.
   if (player.penalty !== null) {
@@ -181,6 +205,9 @@ export function getLegalPlays(game) {
       const target = game.players[i];
       if (i === game.currentPlayer) {
         continue; // not yourself
+      }
+      if (!isStillPlaying(target)) {
+        continue; // they've finished or been knocked out
       }
       if (!canBeAttacked(card, target.position)) {
         continue; // wrong part of the board
@@ -304,6 +331,28 @@ function movePiece(game, play) {
   if (play.cards.includes('WEAK_STIMULUS')) {
     game.canMove = false;
   }
+
+  if (player.position === FINISH) {
+    finishRace(game);
+  }
+}
+
+// The current player has reached the axon terminal.
+function finishRace(game) {
+  const player = getCurrentPlayer(game);
+  game.finishOrder.push(game.currentPlayer);
+  if (game.winner === null) {
+    game.winner = game.currentPlayer; // first to finish wins
+  }
+
+  // Their cards go back into the game for everyone else.
+  for (const card of player.hand) {
+    game.discards[getCardType(card).deck].push(card);
+  }
+  player.hand = [];
+
+  checkGameOver(game);
+  passTurn(game);
 }
 
 // Play an action card against another player.
@@ -344,9 +393,35 @@ function discardCard(game, play) {
 // Refill the player's hand, then pass the turn to the next player.
 function endTurn(game) {
   refillHand(game, getCurrentPlayer(game));
-  game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
+  checkGameOver(game); // they might have just drawn their third Tetrodotoxin
+  passTurn(game);
+}
+
+// Move on to the next player who is still in the race, and reset the turn.
+function passTurn(game) {
+  if (game.gameOver) {
+    return;
+  }
+  do {
+    game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
+  } while (!isStillPlaying(getCurrentPlayer(game)));
+
   game.turnNumber = game.turnNumber + 1;
   game.canMove = true;
   game.played = { potential: false, action: false };
   game.discarded = { potential: 0, action: 0 };
+}
+
+// The game ends when fewer than 2 players are still in the race.
+function checkGameOver(game) {
+  const stillPlaying = game.players.filter((player) => isStillPlaying(player));
+  if (stillPlaying.length >= 2) {
+    return;
+  }
+  game.gameOver = true;
+
+  // Nobody finished, but everyone else was knocked out: the last one standing wins.
+  if (game.winner === null && stillPlaying.length === 1) {
+    game.winner = game.players.indexOf(stillPlaying[0]);
+  }
 }

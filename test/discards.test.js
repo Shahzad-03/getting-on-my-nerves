@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AXON_HILLOCK } from '../src/engine/board.js';
-import { createGame, getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { getLegalPlays, applyPlay } from '../src/engine/game.js';
+import { newTestGame } from './helpers.js';
 
 // Ana goes first, standing at `position`, holding `hand`. Ben hasn't started.
 function setUp(position, hand) {
-  const game = createGame([{ name: 'Ana' }, { name: 'Ben' }]);
+  const game = newTestGame(['Ana', 'Ben']);
   game.currentPlayer = 0;
   game.players[0].position = position;
   game.players[0].hand = hand;
