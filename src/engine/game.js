@@ -8,6 +8,7 @@ import { getMoveOptions, ATTACK_CARDS, canBeAttacked } from './rules.js';
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
 export const HAND_SIZE = { potential: 4, action: 2 };
+export const MAX_DISCARDS = { potential: 2, action: 1 }; // per turn
 
 // Make one deck: a list of card IDs, with each ID repeated `count` times.
 export function buildDeck(deck) {
@@ -87,13 +88,16 @@ export function createGame(players) {
     currentPlayer: 0,
     turnNumber: 1,
     canMove: true, // false after a Weak stimulus, until the next turn
+    played: { potential: false, action: false }, // played a card from this deck this turn?
+    discarded: { potential: 0, action: 0 },      // cards discarded this turn
+    forcedDiscards: true, // the "discard if you can't play" rule (tests can switch it off)
   };
 
   for (const p of players) {
     game.players.push({
       name: p.name,
       isComputer: p.isComputer === true,
-            position: AXON_HILLOCK,
+      position: AXON_HILLOCK,
       hand: [],
       penalty: null, // the card that will make them skip their next turn, if any
     });
@@ -160,8 +164,55 @@ export function getLegalPlays(game) {
     }
   }
 
-  plays.push({ type: 'END_TURN' });
+  // Discards: up to 2 potential and 1 action card per turn.
+  for (const card of new Set(player.hand)) {
+    const deck = getCardType(card).deck;
+    if (game.discarded[deck] < MAX_DISCARDS[deck]) {
+      plays.push({ type: 'DISCARD', card: card });
+    }
+  }
+
+  // You can end your turn, unless you still owe a compulsory discard.
+  if (!mustDiscard(game, plays, POTENTIAL) && !mustDiscard(game, plays, ACTION)) {
+    plays.push({ type: 'END_TURN' });
+  }
   return plays;
+}
+
+// Rulebook: "If you cannot make any legal play with potential cards, discard 2.
+// If you cannot play any action card, discard 1."
+// Does the player still have to discard from this deck before ending their turn?
+function mustDiscard(game, plays, deck) {
+  if (!game.forcedDiscards) {
+    return false;
+  }
+  if (game.played[deck]) {
+    return false; // they played a card from this deck this turn
+  }
+  if (canPlayFromDeck(plays, deck)) {
+    return false; // they could still play one
+  }
+  const player = getCurrentPlayer(game);
+  const stillToDiscard = MAX_DISCARDS[deck] - game.discarded[deck];
+  return stillToDiscard > 0 && countInHand(player, deck) > 0;
+}
+
+// Is there a MOVE or ATTACK in this list that uses a card from this deck?
+function canPlayFromDeck(plays, deck) {
+  for (const play of plays) {
+    let cards = [];
+    if (play.type === 'MOVE') {
+      cards = play.cards;
+    } else if (play.type === 'ATTACK') {
+      cards = [play.card];
+    }
+    for (const card of cards) {
+      if (getCardType(card).deck === deck) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 // Does the player hold every one of these cards?
@@ -190,7 +241,7 @@ export function applyPlay(game, play) {
     throw new Error('That play is not allowed: ' + JSON.stringify(play));
   }
 
-      if (play.type === 'MOVE') {
+  if (play.type === 'MOVE') {
     movePiece(game, play);
   } else if (play.type === 'ATTACK') {
     attackPlayer(game, play);
@@ -198,6 +249,8 @@ export function applyPlay(game, play) {
     skipTurn(game);
   } else if (play.type === 'CANCEL_PENALTY') {
     cancelPenalty(game);
+  } else if (play.type === 'DISCARD') {
+    discardCard(game, play);
   } else if (play.type === 'END_TURN') {
     endTurn(game);
   }
@@ -215,6 +268,7 @@ function movePiece(game, play) {
   const player = getCurrentPlayer(game);
   for (const card of play.cards) {
     discardFromHand(game, player, card);
+    game.played[getCardType(card).deck] = true;
   }
   player.position = Math.min(player.position + play.steps, FINISH);
 
@@ -225,11 +279,11 @@ function movePiece(game, play) {
 }
 
 // Play an action card against another player.
-// Play an action card against another player.
 function attackPlayer(game, play) {
   const player = getCurrentPlayer(game);
   const target = game.players[play.target];
   discardFromHand(game, player, play.card);
+  game.played.action = true;
 
   if (play.card === 'ALCOHOL') {
     target.position = Math.max(START, target.position - 2);
@@ -249,7 +303,14 @@ function skipTurn(game) {
 function cancelPenalty(game) {
   const player = getCurrentPlayer(game);
   discardFromHand(game, player, 'STRONG_STIMULUS');
+  game.played.potential = true;
   player.penalty = null;
+}
+
+// Throw away a card you don't want.
+function discardCard(game, play) {
+  discardFromHand(game, getCurrentPlayer(game), play.card);
+  game.discarded[getCardType(play.card).deck] += 1;
 }
 
 // Refill the player's hand, then pass the turn to the next player.
@@ -258,4 +319,6 @@ function endTurn(game) {
   game.currentPlayer = (game.currentPlayer + 1) % game.players.length;
   game.turnNumber = game.turnNumber + 1;
   game.canMove = true;
+  game.played = { potential: false, action: false };
+  game.discarded = { potential: 0, action: 0 };
 }

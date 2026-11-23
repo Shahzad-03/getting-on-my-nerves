@@ -7,6 +7,7 @@ import { createGame, getCurrentPlayer, getLegalPlays, applyPlay } from '../src/e
 function setUp(position, hand) {
   const game = createGame([{ name: 'Ana' }, { name: 'Ben' }]);
   game.currentPlayer = 0;
+  game.forcedDiscards = false; // these tests are only about moving
   const ana = getCurrentPlayer(game);
   ana.position = position;
   ana.hand = hand;

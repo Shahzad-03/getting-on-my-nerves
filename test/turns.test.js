@@ -9,6 +9,7 @@ import {
 function newGame() {
   const game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
   game.currentPlayer = 0;
+  game.forcedDiscards = false; // these tests are only about turns
   return game;
 }
 
