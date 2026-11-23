@@ -1,7 +1,7 @@
 // rules.js
 // Which cards let a piece move forward. This is the rulebook's quick reference table.
 
-import { AXON_HILLOCK, FINISH, PINK, PEACH, MAGENTA, BLUE, GREEN, YELLOW, getColourAt } from './board.js';
+import { AXON_HILLOCK, START, THRESHOLD, FINISH, PINK, PEACH, MAGENTA, BLUE, GREEN, YELLOW, getColourAt } from './board.js';
 
 // The ways a piece at this position can move forward.
 // Returns a list of options, each like { cards: ['NA_OPEN', 'K_CLOSED'], steps: 1 }.
@@ -22,8 +22,12 @@ export function getMoveOptions(position) {
   // Otherwise, the colour of the NEXT space decides which cards you need.
   const next = getColourAt(position + 1);
 
-  if (next === PINK) {
-    return [{ cards: ['NA_OPEN'], steps: 1 }];
+    if (next === PINK) {
+    return [
+      { cards: ['NA_OPEN'], steps: 1 },
+      // Caffeine: 2 steps, but never past -55 mV
+      { cards: ['CAFFEINE'], steps: Math.min(2, THRESHOLD - position) },
+    ];
   }
   if (next === PEACH) {
     return [{ cards: ['NA_OPEN', 'K_CLOSED'], steps: 1 }];
@@ -45,4 +49,10 @@ export function getMoveOptions(position) {
     ];
   }
   return [];
+}
+
+// Can a player at this position be hit by Alcohol?
+// Only on the pink spaces after START and before threshold (-68 to -56 mV).
+export function canBeHitByAlcohol(position) {
+  return position > START && position < THRESHOLD;
 }

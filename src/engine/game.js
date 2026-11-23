@@ -2,8 +2,8 @@
 // Creating a new game: building the decks, shuffling and dealing.
 
 import { CARD_TYPES, POTENTIAL, ACTION, getCardType } from './cards.js';
-import { AXON_HILLOCK, FINISH } from './board.js';
-import { getMoveOptions } from './rules.js';
+import { AXON_HILLOCK, START, FINISH } from './board.js';
+import { getMoveOptions, canBeHitByAlcohol } from './rules.js';
 
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
@@ -129,6 +129,14 @@ export function getLegalPlays(game) {
       }
     }
   }
+  // Alcohol: send an opponent back 2 spaces.
+  if (player.hand.includes('ALCOHOL')) {
+    for (let i = 0; i < game.players.length; i++) {
+      if (i !== game.currentPlayer && canBeHitByAlcohol(game.players[i].position)) {
+        plays.push({ type: 'ATTACK', card: 'ALCOHOL', target: i });
+      }
+    }
+  }
 
   plays.push({ type: 'END_TURN' });
   return plays;
@@ -160,8 +168,10 @@ export function applyPlay(game, play) {
     throw new Error('That play is not allowed: ' + JSON.stringify(play));
   }
 
-  if (play.type === 'MOVE') {
+    if (play.type === 'MOVE') {
     movePiece(game, play);
+  } else if (play.type === 'ATTACK') {
+    attackPlayer(game, play);
   } else if (play.type === 'END_TURN') {
     endTurn(game);
   }
@@ -185,6 +195,17 @@ function movePiece(game, play) {
   // Weak stimulus: onto START, but no more forward moves this turn.
   if (play.cards.includes('WEAK_STIMULUS')) {
     game.canMove = false;
+  }
+}
+
+// Play an action card against another player.
+function attackPlayer(game, play) {
+  const player = getCurrentPlayer(game);
+  const target = game.players[play.target];
+  discardFromHand(game, player, play.card);
+
+  if (play.card === 'ALCOHOL') {
+    target.position = Math.max(START, target.position - 2);
   }
 }
 
