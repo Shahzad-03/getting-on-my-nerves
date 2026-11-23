@@ -9,7 +9,7 @@ function countAllCards(game) {
   let total = game.decks.potential.length + game.decks.action.length;
   total = total + game.discards.potential.length + game.discards.action.length;
   for (const player of game.players) {
-    total = total + player.hand.length;
+    total = total + player.hand.length + player.tetrodotoxin.length;
   }
   return total;
 }
@@ -28,7 +28,10 @@ test('shuffle keeps the same cards, just in a different order', () => {
 
 test('each player is dealt 4 potential and 2 action cards', () => {
   const game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
-  for (const player of game.players) {
+    for (const player of game.players) {
+    if (player.eliminated) {
+      continue; // (very rarely, someone is dealt three Tetrodotoxin)
+    }
     assert.equal(countInHand(player, POTENTIAL), 4);
     assert.equal(countInHand(player, ACTION), 2);
   }
@@ -36,8 +39,9 @@ test('each player is dealt 4 potential and 2 action cards', () => {
 
 test('dealt cards are taken out of the decks, and no card is lost', () => {
   const game = createGame([{ name: 'Ana' }, { name: 'Ben' }]);
-  assert.equal(game.decks.potential.length, 122 - 8);
-  assert.equal(game.decks.action.length, 62 - 4);
+    assert.equal(game.decks.potential.length, 122 - 8);
+  // At least 4 action cards are gone (more if someone drew a Tetrodotoxin and had to replace it).
+  assert.ok(game.decks.action.length <= 62 - 4);
   assert.equal(countAllCards(game), 184);
 });
 

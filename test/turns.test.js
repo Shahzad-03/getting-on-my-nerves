@@ -7,7 +7,12 @@ import {
 
 // A 3-player game where player 0 (Ana) goes first.
 function newGame() {
-  const game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
+  let game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
+  // Very rarely someone is dealt three Tetrodotoxin and is out before the game starts.
+  // That would muddle these tests, so deal again.
+  while (game.players.some((player) => player.eliminated)) {
+    game = createGame([{ name: 'Ana' }, { name: 'Ben' }, { name: 'Cat' }]);
+  }
   game.currentPlayer = 0;
   game.forcedDiscards = false; // these tests are only about turns
   return game;
@@ -56,6 +61,8 @@ test('ending your turn refills your hand to 4 + 2', () => {
   assert.equal(ana.hand.length, 4);
 
   applyPlay(game, { type: 'END_TURN' });
-  assert.equal(countInHand(ana, POTENTIAL), 4);
-  assert.equal(countInHand(ana, ACTION), 2);
+  if (!ana.eliminated) { // (unless she drew her third Tetrodotoxin)
+    assert.equal(countInHand(ana, POTENTIAL), 4);
+    assert.equal(countInHand(ana, ACTION), 2);
+  }
 });

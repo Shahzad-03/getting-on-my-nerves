@@ -9,6 +9,7 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 6;
 export const HAND_SIZE = { potential: 4, action: 2 };
 export const MAX_DISCARDS = { potential: 2, action: 1 }; // per turn
+export const TETRODOTOXIN_LIMIT = 3; // collect this many and you're out
 
 // Make one deck: a list of card IDs, with each ID repeated `count` times.
 export function buildDeck(deck) {
@@ -47,8 +48,14 @@ export function countInHand(player, deck) {
   return count;
 }
 
-// Take the top card of a deck. Returns null if the deck is empty.
+// Take the top card of a deck.
+// If the deck has run out, the discard pile is shuffled to make a new one.
+// Returns null only if there are no cards left at all.
 export function drawCard(game, deck) {
+  if (game.decks[deck].length === 0) {
+    game.decks[deck] = shuffle(game.discards[deck]);
+    game.discards[deck] = [];
+  }
   if (game.decks[deck].length === 0) {
     return null;
   }
@@ -56,15 +63,34 @@ export function drawCard(game, deck) {
 }
 
 // Draw cards until the player has 4 potential and 2 action cards.
+// A Tetrodotoxin card is never held: it goes face up in front of the player,
+// and they draw again to replace it.
 export function refillHand(game, player) {
   for (const deck of [POTENTIAL, ACTION]) {
-    while (countInHand(player, deck) < HAND_SIZE[deck]) {
+    while (!player.eliminated && countInHand(player, deck) < HAND_SIZE[deck]) {
       const card = drawCard(game, deck);
       if (card === null) {
-        break; // deck is empty
+        break; // no cards left anywhere
       }
-      player.hand.push(card);
+      if (card === 'TETRODOTOXIN') {
+        collectTetrodotoxin(game, player, card);
+      } else {
+        player.hand.push(card);
+      }
     }
+  }
+}
+
+// Put a Tetrodotoxin card in front of the player. The third one knocks them out.
+function collectTetrodotoxin(game, player, card) {
+  player.tetrodotoxin.push(card);
+  if (player.tetrodotoxin.length >= TETRODOTOXIN_LIMIT) {
+    player.eliminated = true;
+    // Their hand goes on the discard piles, so the cards stay in the game.
+    for (const heldCard of player.hand) {
+      game.discards[getCardType(heldCard).deck].push(heldCard);
+    }
+    player.hand = [];
   }
 }
 
@@ -100,6 +126,8 @@ export function createGame(players) {
       position: AXON_HILLOCK,
       hand: [],
       penalty: null, // the card that will make them skip their next turn, if any
+      tetrodotoxin: [], // Tetrodotoxin cards face up in front of them
+      eliminated: false, // true after their third Tetrodotoxin
     });
   }
 
