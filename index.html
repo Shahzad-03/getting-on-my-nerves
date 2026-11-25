@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>You are getting on my nerves</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>You are getting on my nerves</h1>
+
+  <!-- Before the game: type the players' names -->
+  <section id="setup">
+    <h2>Who's playing?</h2>
+    <p>Type 2 to 4 names. Leave a box empty if you have fewer players.</p>
+    <input class="name" type="text" placeholder="Player 1">
+    <input class="name" type="text" placeholder="Player 2">
+    <input class="name" type="text" placeholder="Player 3">
+    <input class="name" type="text" placeholder="Player 4">
+    <p id="setup-error" class="error"></p>
+    <button id="start">Start the game</button>
+  </section>
+
+  <!-- The game itself -->
+  <section id="game" hidden>
+    <div id="board" class="board"></div>
+
+    <h2 id="turn"></h2>
+    <p id="message" class="message"></p>
+
+    <h3>Your cards</h3>
+    <div id="hand" class="hand"></div>
+
+    <h3>What you can do</h3>
+    <div id="plays" class="plays"></div>
+
+    <h3>Players</h3>
+    <ul id="players"></ul>
+  </section>
+
+  <script type="module" src="src/ui.js"></script>
+</body>
+</html>
